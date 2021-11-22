@@ -31,7 +31,7 @@ const Bio = styled.div`
   color: rgba(255, 255, 255, 0.7);
 `
 
-const WaveButton = styled.div`
+const WaveButton = styled.button`
   cursor: pointer;
   margin-top: 16px;
   padding: 8px;
@@ -42,17 +42,39 @@ const WaveButton = styled.div`
   text-align: center;
 `
 
+const WaveList = styled.div`
+  background-color: #fff;
+  margin-top: 16px;
+  padding: 8px;
+  border-radius: 5px;
+  span {
+    font-weight: 600;
+  }
+`
+
+const MessageInput = styled.input`
+    width: 83%;
+    margin-right: 12px;
+    padding: 11px;
+    border-radius: 5px;
+    border: 0px;
+    padding-bottom: 9px;
+`
+
 export default function App() {
 
-  const wavePortalAddress = '0xdC701Ba2A5c9D4CA33046a24Eb7f7769C94Fd55e'
+  const wavePortalAddress = '0xa5A64b7b0CC431fB71F7b2c6b036098eDB65218A'
   const wavePortalABI = contractABI.abi
 
   const [currentAccount, setCurrentAccount] = useState('')
   const [waveNumber, setWaveNumber] = useState(0)
+  const [allWaves, setAllWaves] = useState([])
+  const [waveMessage, setWaveMessage] = useState('')
+
   let provider;
   let wavePortalContract;
 
-  const setNumberOfWaves = async () => {
+  const getNumberOfWaves = async () => {
     if (!wavePortalContract) return 0
     let count = await wavePortalContract.getTotalWaves()
     setWaveNumber(count.toNumber())
@@ -61,7 +83,8 @@ export default function App() {
   const initPage = (account) => {
     setCurrentAccount(account)
     connectToContract()
-    setNumberOfWaves()
+    getNumberOfWaves()
+    getAllWaves()
   }
 
   const checkIfWalletIsConnected = async () => {
@@ -86,10 +109,30 @@ export default function App() {
 
   const connectToContract = () => {
     if (!provider) {
-      console.log('coucou')
       provider = new ethers.providers.Web3Provider(window.ethereum)
       wavePortalContract = new ethers.Contract(wavePortalAddress, wavePortalABI, provider.getSigner())
     }
+  }
+
+  const getAllWaves = async () => {
+    if (!window.ethereum){
+      console.log('Metamask not installed.')
+      return
+    }
+    if (!wavePortalContract) connectToContract()
+
+    const waves = await wavePortalContract.getAllWaves()
+
+    let cleanWaves = []
+    waves.forEach(wave => {
+      cleanWaves.push({
+        'address': wave.addr,
+        'message': wave.message,
+        'timestamp': new Date(wave.timestamp *1000)
+      })
+    })
+
+    setAllWaves(cleanWaves.reverse())
   }
 
   const wave = async () => {
@@ -101,14 +144,20 @@ export default function App() {
     try {
       if (!wavePortalContract) connectToContract()
       console.log(wavePortalContract)
-      let waveTxn = await wavePortalContract.wave()
+      let waveTxn = await wavePortalContract.wave(waveMessage)
+      setWaveMessage('')
       await waveTxn.wait()
-      setNumberOfWaves()
+      getNumberOfWaves()
+      getAllWaves()
 
     } catch (e) {
       throw e
     }
     
+  }
+
+  const changeMessage = (event) => {
+    setWaveMessage(event.target.value)
   }
 
   const loginToMetamask = async () => {
@@ -142,10 +191,25 @@ export default function App() {
         I'm Matteo, and I really like to know who's been on this page, so you can leave a message by waving at me, that's dope, right?
         <div>So far, I had {waveNumber} waves, impressive!</div>
         </Bio>
+        <div>
+          {currentAccount && 
+          <MessageInput type='textbox' placeholder='Your message' value={waveMessage} onChange={changeMessage}></MessageInput>
+          }
+          <WaveButton onClick={!currentAccount ? loginToMetamask : wave}>
+            {!currentAccount ? 'Login to Metamask' : 'Wave 👋🏻'}
+          </WaveButton>
+        </div>
+ 
 
-        <WaveButton onClick={!currentAccount ? loginToMetamask : wave}>
-          {!currentAccount ? 'Login to Metamask' : 'Wave 👋🏻'}
-        </WaveButton>
+        {allWaves.map((wave, index) => {
+          return (
+            <WaveList key={index}>
+              <div><span>Address:</span> {wave.address}</div>
+              <div><span>Time:</span> {wave.timestamp.toString()}</div>
+              <div><span>Message:</span> {wave.message}</div>
+            </WaveList>
+          )
+        })}
       </DataContainer>
     </Container>
   )
