@@ -63,7 +63,7 @@ const MessageInput = styled.input`
 
 export default function App() {
 
-  const wavePortalAddress = '0xa5A64b7b0CC431fB71F7b2c6b036098eDB65218A'
+  const wavePortalAddress = '0xF9e923E2957594082B6Ad4C84D7d58801cd17a66'
   const wavePortalABI = contractABI.abi
 
   const [currentAccount, setCurrentAccount] = useState('')
@@ -144,7 +144,7 @@ export default function App() {
     try {
       if (!wavePortalContract) connectToContract()
       console.log(wavePortalContract)
-      let waveTxn = await wavePortalContract.wave(waveMessage)
+      let waveTxn = await wavePortalContract.wave(waveMessage, { gasLimit: 300000 })
       setWaveMessage('')
       await waveTxn.wait()
       getNumberOfWaves()
@@ -178,13 +178,28 @@ export default function App() {
   
   useEffect(() => {
     checkIfWalletIsConnected()
+    const onNewWave = (from, timestamp, message) => {
+      console.log('NewWave', from, timestamp, message)
+      getAllWaves()
+    }
+  
+    if (window.ethereum) {
+      if (!provider) connectToContract()
+      wavePortalContract.on('NewWave', onNewWave)
+    }
+  
+    return () => {
+      if (wavePortalContract) {
+        wavePortalContract.off('NewWave', onNewWave)
+      }
+    }
   }, [])
 
   return (
     <Container>
       <DataContainer>
         <Header>
-        Wow, here's a cool dApp !
+        Wow, here's a cool dApp ! 🎉
         </Header>
 
         <Bio>
